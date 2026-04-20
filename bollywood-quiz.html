@@ -1,0 +1,2369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bollywood Quiz Night — Banquet Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital,wght@0,600;0,800;1,600;1,800&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!--
+========================================================================
+  BOLLYWOOD QUIZ NIGHT — BANQUET GAME
+  ------------------------------------------------------------------
+  HOW TO ADD / EDIT QUESTIONS:
+    Scroll down to the GAME_DATA object near the bottom of this file.
+    Each category has 4 questions: keys "5", "10", "20", "50".
+
+  HOW TO ADD MEDIA (optional):
+    Put audio/image/video files in folders next to this HTML file, then
+    add the path to the question. Every field is optional — leave it as
+    "" if you don't want it. Supported fields:
+      promptAudio   — audio clip for the question (e.g. "audio/q1.mp3")
+      promptImage   — image/still for the question (e.g. "img/d1.jpg")
+      promptVideo   — video clip for the question  (e.g. "video/h1.mp4")
+      answerAudio / answerImage / answerVideo — same, shown with answer
+
+  KEYBOARD SHORTCUTS:
+    Space / Enter → Reveal answer (on question page)
+    Escape / B    → Back to board
+    R             → Reset the board (asks for confirmation)
+
+  PROGRESS IS SAVED automatically in the browser. Used tiles stay
+  marked if you refresh. Click "Reset Board" to start fresh.
+========================================================================
+-->
+
+<style>
+  :root {
+    --plum-900: #1a0a24;
+    --plum-800: #2a0d3a;
+    --plum-700: #3b1150;
+    --plum-600: #50195e;
+    --gold-400: #f5c518;
+    --gold-500: #d4a017;
+    --gold-600: #b58410;
+    --magenta-500: #e63e92;
+    --magenta-600: #c5236f;
+    --cream:     #fff4e6;
+    --cream-dim: #e9d7bd;
+    --muted:     #7a6080;
+    --used:      #2a1d35;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    min-height: 100%;
+    background: var(--plum-900);
+    color: var(--cream);
+    font-family: 'Manrope', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Atmospheric background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(1200px 600px at 15% 10%, rgba(230, 62, 146, 0.18), transparent 60%),
+      radial-gradient(1000px 500px at 85% 90%, rgba(245, 197, 24, 0.12), transparent 60%),
+      radial-gradient(800px 400px at 50% 50%, rgba(59, 17, 80, 0.6), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(circle at 25% 30%, rgba(245, 197, 24, 0.06) 1px, transparent 1px),
+      radial-gradient(circle at 75% 70%, rgba(230, 62, 146, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px, 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .view { position: relative; z-index: 1; min-height: 100vh; }
+  .hidden { display: none !important; }
+
+  /* ===================== HOME / BOARD ===================== */
+
+  #home-view {
+    padding: 40px 48px 60px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .home-header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .chip-row {
+    font-size: 1.8rem;
+    letter-spacing: 0.6em;
+    margin-bottom: 12px;
+    opacity: 0.9;
+  }
+
+  .title {
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    font-size: clamp(3rem, 7vw, 6rem);
+    letter-spacing: 0.08em;
+    line-height: 0.9;
+    color: var(--gold-400);
+    text-shadow: 0 2px 0 var(--gold-600),
+                 0 0 40px rgba(245, 197, 24, 0.35);
+  }
+
+  .title em {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-weight: 600;
+    color: var(--cream);
+    font-size: 0.55em;
+    margin-left: 0.3em;
+    letter-spacing: 0;
+    text-shadow: none;
+  }
+
+  .tagline {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--cream-dim);
+    margin-top: 14px;
+    letter-spacing: 0.02em;
+  }
+
+  .board {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-top: 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .category-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .category-header {
+    background: linear-gradient(145deg, var(--magenta-600), var(--magenta-500));
+    padding: 14px 14px 16px;
+    border-radius: 10px;
+    text-align: center;
+    border: 2px solid rgba(245, 197, 24, 0.4);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .category-icon {
+    font-size: 1.4rem;
+    margin-bottom: 2px;
+  }
+
+  .category-name {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+    line-height: 1.05;
+    color: var(--cream);
+  }
+
+  .category-sub {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255,244,230,0.65);
+    line-height: 1.3;
+    margin-top: 2px;
+  }
+
+  .tile {
+    background: linear-gradient(145deg, var(--plum-700), var(--plum-600));
+    border: 2px solid var(--gold-500);
+    border-radius: 10px;
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(245,197,24,0.25);
+    position: relative;
+    overflow: hidden;
+    min-height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tile::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(245,197,24,0.15), transparent 60%);
+    pointer-events: none;
+  }
+
+  .tile:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 0 rgba(0,0,0,0.35),
+                0 10px 30px rgba(245, 197, 24, 0.25),
+                inset 0 1px 0 rgba(245,197,24,0.35);
+    background: linear-gradient(145deg, var(--plum-600), var(--plum-700));
+  }
+
+  .tile:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(245,197,24,0.25);
+  }
+
+  .tile-points {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 2.8rem;
+    color: var(--gold-400);
+    letter-spacing: 0.05em;
+    line-height: 1;
+    text-shadow: 0 2px 0 var(--gold-600);
+  }
+
+  .tile.used {
+    background: var(--used);
+    border-color: #3a2a4a;
+    cursor: default;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.4);
+    transform: none;
+  }
+  .tile.used::before { display: none; }
+  .tile.used:hover {
+    transform: none;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.4);
+  }
+  .tile.used .tile-points {
+    color: #4a3a5a;
+    text-shadow: none;
+  }
+
+  .home-footer {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--cream-dim);
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--cream-dim);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover {
+    border-color: var(--gold-500);
+    color: var(--gold-400);
+  }
+
+  .reset-wrap { display: flex; align-items: center; gap: 10px; }
+  .reset-confirm {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 14px;
+    border: 1px solid var(--gold-500);
+    border-radius: 6px;
+    background: rgba(245, 197, 24, 0.08);
+    color: var(--cream);
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+  }
+  .reset-no, .reset-yes {
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .reset-no {
+    background: transparent;
+    color: var(--cream-dim);
+    border: 1px solid var(--muted);
+  }
+  .reset-no:hover { color: var(--cream); border-color: var(--cream-dim); }
+  .reset-yes {
+    background: var(--gold-400);
+    color: var(--plum-900);
+  }
+  .reset-yes:hover { background: var(--gold-500); }
+
+  /* ===================== QUESTION VIEW ===================== */
+
+  #question-view {
+    padding: 32px 48px 48px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .q-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(245,197,24,0.2);
+    margin-bottom: 24px;
+  }
+
+  .q-category {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .q-category-icon {
+    font-size: 2rem;
+  }
+
+  .q-category-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .q-category-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--cream-dim);
+  }
+
+  .q-category-name {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.05em;
+    color: var(--cream);
+  }
+
+  .q-category-sub {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cream-dim);
+    margin-top: 1px;
+  }
+
+  .q-points {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 3.5rem;
+    color: var(--gold-400);
+    letter-spacing: 0.05em;
+    line-height: 1;
+    text-shadow: 0 2px 0 var(--gold-600), 0 0 30px rgba(245,197,24,0.3);
+  }
+
+  .q-points sub {
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    color: var(--cream-dim);
+    vertical-align: middle;
+    margin-left: 8px;
+    text-transform: uppercase;
+    text-shadow: none;
+  }
+
+  .q-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .q-prompt {
+    font-size: clamp(3rem, 9vw, 7rem);
+    text-align: center;
+    line-height: 1.15;
+    padding: 40px 20px;
+    background: linear-gradient(145deg, var(--plum-800), var(--plum-700));
+    border: 2px solid rgba(245,197,24,0.3);
+    border-radius: 16px;
+    width: 100%;
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.3);
+    word-break: break-word;
+  }
+
+  .q-prompt.text-prompt {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-size: clamp(1.6rem, 3.5vw, 2.8rem);
+    color: var(--cream);
+    line-height: 1.4;
+  }
+
+  .q-media {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .q-media img,
+  .q-media video {
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: 12px;
+    border: 2px solid rgba(245,197,24,0.3);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+
+  .q-media audio {
+    width: 100%;
+    max-width: 500px;
+    filter: sepia(1) hue-rotate(310deg) saturate(3);
+  }
+
+  .reveal-btn {
+    background: linear-gradient(145deg, var(--gold-400), var(--gold-500));
+    color: var(--plum-900);
+    border: none;
+    padding: 18px 48px;
+    border-radius: 10px;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    box-shadow: 0 6px 0 var(--gold-600), 0 10px 40px rgba(245,197,24,0.4);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .reveal-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 0 var(--gold-600), 0 12px 50px rgba(245,197,24,0.5);
+  }
+  .reveal-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 var(--gold-600);
+  }
+
+  .answer-box {
+    width: 100%;
+    text-align: center;
+    padding: 36px 24px;
+    background: linear-gradient(145deg, var(--magenta-600), var(--magenta-500));
+    border: 3px solid var(--gold-400);
+    border-radius: 16px;
+    box-shadow: 0 10px 60px rgba(230,62,146,0.4);
+    animation: reveal 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.2);
+  }
+
+  @keyframes reveal {
+    0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .answer-label {
+    font-size: 0.85rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: 12px;
+  }
+
+  .answer-text {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    color: var(--cream);
+    line-height: 1.2;
+  }
+
+  .answer-media {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .q-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(245,197,24,0.2);
+  }
+
+  .back-btn {
+    background: transparent;
+    border: 1px solid var(--gold-500);
+    color: var(--gold-400);
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .back-btn:hover {
+    background: var(--gold-400);
+    color: var(--plum-900);
+  }
+
+  .mark-used {
+    color: var(--cream-dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+  }
+  .mark-used input {
+    margin-right: 6px;
+    transform: scale(1.2);
+    accent-color: var(--gold-400);
+  }
+
+  /* ===================== TIMER ===================== */
+  .timer-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 14px 20px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(245,197,24,0.2);
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+  .t-ring-wrap {
+    position: relative;
+    width: 76px; height: 76px;
+    flex-shrink: 0;
+  }
+  .t-svg { width: 76px; height: 76px; transform: rotate(-90deg); }
+  .t-ring-bg { fill: none; stroke: rgba(245,197,24,0.12); stroke-width: 7; }
+  .t-ring-fg {
+    fill: none; stroke: var(--gold-400); stroke-width: 7;
+    stroke-linecap: round;
+    stroke-dasharray: 213.6; stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.9s linear, stroke 0.4s;
+  }
+  .t-ring-wrap.warn  .t-ring-fg { stroke: #f97316; }
+  .t-ring-wrap.danger .t-ring-fg { stroke: #ef4444; animation: pulse-ring 0.6s infinite alternate; }
+  .t-ring-wrap.ended  .t-ring-fg { stroke: #ef4444; stroke-dashoffset: 213.6; }
+  @keyframes pulse-ring { to { opacity: 0.35; } }
+  .t-count {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.7rem; color: var(--gold-400); letter-spacing: 0.05em;
+    transition: color 0.4s;
+  }
+  .t-ring-wrap.warn   .t-count  { color: #f97316; }
+  .t-ring-wrap.danger .t-count,
+  .t-ring-wrap.ended  .t-count  { color: #ef4444; animation: flash-t 0.5s infinite alternate; }
+  @keyframes flash-t { to { opacity: 0.25; } }
+
+  .t-main { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .t-progress-track {
+    height: 8px; background: rgba(245,197,24,0.1);
+    border-radius: 4px; overflow: hidden;
+  }
+  .t-progress-fill {
+    height: 100%; width: 100%; background: var(--gold-400);
+    border-radius: 4px; transition: width 0.9s linear, background 0.4s;
+  }
+  .t-ring-wrap.warn  ~ .t-main .t-progress-fill { background: #f97316; }
+  .t-ring-wrap.danger ~ .t-main .t-progress-fill,
+  .t-ring-wrap.ended ~ .t-main .t-progress-fill { background: #ef4444; }
+  .t-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .t-btn {
+    background: transparent; border: 1px solid rgba(245,197,24,0.35);
+    color: var(--cream-dim); padding: 7px 14px; border-radius: 6px;
+    font-family: 'Manrope', sans-serif; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.08em; cursor: pointer; transition: all 0.15s;
+  }
+  .t-btn:hover:not(:disabled) { border-color: var(--gold-400); color: var(--gold-400); background: rgba(245,197,24,0.08); }
+  .t-btn:disabled { opacity: 0.25; cursor: default; }
+  .t-btn.go { background: var(--gold-400); color: var(--plum-900); border-color: var(--gold-400); font-weight: 700; }
+  .t-btn.go:hover { background: var(--gold-500); }
+  .t-sep { color: var(--muted); margin: 0 2px; }
+  .t-set { display: flex; align-items: center; gap: 6px; color: var(--cream-dim); font-size: 0.78rem; letter-spacing: 0.08em; }
+  .t-set input[type=number] {
+    width: 52px; padding: 5px 8px; background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(245,197,24,0.3); border-radius: 5px;
+    color: var(--cream); font-family: 'Manrope', sans-serif; font-size: 0.82rem;
+    text-align: center; outline: none;
+  }
+  .t-set input[type=number]::-webkit-inner-spin-button { opacity: 0.5; }
+
+  /* ===================== AWARD POINTS ===================== */
+  .award-section {
+    margin-top: 20px; padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .award-title {
+    font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--gold-400); text-align: center; margin-bottom: 12px;
+  }
+  .award-teams { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .award-btn {
+    padding: 9px 20px; border-radius: 8px; border: 2px solid;
+    font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 0.88rem;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .award-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+  .award-btn.done { opacity: 0.45; cursor: default; transform: none !important; box-shadow: none !important; }
+  .award-btn .checkmark { display: none; }
+  .award-btn.done .checkmark { display: inline; }
+  .award-no-teams {
+    text-align: center; color: var(--muted); font-size: 0.85rem; font-style: italic;
+    padding: 8px 0;
+  }
+
+  /* ===================== SCOREBOARD VIEW ===================== */
+  #scoreboard-view {
+    padding: 40px 48px 60px;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  .sb-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 36px; padding-bottom: 20px;
+    border-bottom: 1px solid rgba(245,197,24,0.2);
+  }
+  .sb-title {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 3rem; color: var(--gold-400); letter-spacing: 0.08em;
+    text-shadow: 0 2px 0 var(--gold-600);
+  }
+  .sb-subtitle { font-family: 'Playfair Display', serif; font-style: italic; color: var(--cream-dim); font-size: 1rem; margin-top: 4px; }
+  .sb-back-btn {
+    background: transparent; border: 1px solid var(--gold-500); color: var(--gold-400);
+    padding: 12px 24px; border-radius: 8px; font-family: 'Manrope', sans-serif;
+    font-size: 0.9rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .sb-back-btn:hover { background: var(--gold-400); color: var(--plum-900); }
+
+  .sb-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px; flex: 1; align-content: start;
+  }
+  .team-card {
+    background: linear-gradient(145deg, var(--plum-800), var(--plum-700));
+    border: 2px solid; border-radius: 14px; padding: 20px 18px;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+    position: relative; transition: transform 0.15s;
+  }
+  .team-card:hover { transform: translateY(-2px); }
+  .team-rank {
+    position: absolute; top: -12px; left: 16px;
+    font-size: 1.4rem; line-height: 1;
+  }
+  .team-name-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .team-name {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.4rem; letter-spacing: 0.05em; color: var(--cream);
+    flex: 1; background: transparent; border: none; outline: none;
+    cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .team-name:hover, .team-name:focus { background: rgba(255,255,255,0.08); }
+  .team-score { font-family: 'Bebas Neue', Impact, sans-serif; font-size: 3rem; letter-spacing: 0.05em; line-height: 1; text-align: center; }
+  .team-score-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .sb-pt-btn {
+    padding: 6px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);
+    font-family: 'Manrope', sans-serif; font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; background: rgba(255,255,255,0.07); color: var(--cream);
+    transition: all 0.12s; letter-spacing: 0.05em;
+  }
+  .sb-pt-btn:hover { background: rgba(255,255,255,0.18); transform: translateY(-1px); }
+  .sb-pt-btn.minus { color: #f87171; border-color: rgba(248,113,113,0.3); }
+  .sb-pt-btn.minus:hover { background: rgba(248,113,113,0.15); }
+  .team-delete {
+    position: absolute; top: 10px; right: 10px;
+    background: transparent; border: none; color: var(--muted);
+    font-size: 0.9rem; cursor: pointer; padding: 4px 6px; border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .team-delete:hover { color: #f87171; }
+
+  .add-team-card {
+    border: 2px dashed rgba(245,197,24,0.25); border-radius: 14px;
+    padding: 20px 18px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    cursor: pointer; transition: all 0.15s; min-height: 160px;
+  }
+  .add-team-card:hover { border-color: var(--gold-400); background: rgba(245,197,24,0.05); }
+  .add-team-card span { color: var(--cream-dim); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .add-team-form { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .add-team-form input {
+    padding: 10px 14px; background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(245,197,24,0.4); border-radius: 6px;
+    color: var(--cream); font-family: 'Manrope', sans-serif; font-size: 0.9rem;
+    outline: none; text-align: center;
+  }
+  .add-team-form input::placeholder { color: var(--muted); }
+  .add-team-confirm {
+    padding: 9px; border-radius: 6px; background: var(--gold-400);
+    color: var(--plum-900); border: none; font-family: 'Manrope', sans-serif;
+    font-size: 0.85rem; font-weight: 700; cursor: pointer; letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .add-team-confirm:hover { background: var(--gold-500); }
+  .sb-footer { margin-top: 28px; text-align: center; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.1em; }
+
+  /* ===================== MEGA CATEGORY ===================== */
+  .mega-column {
+    display: flex; flex-direction: column; gap: 14px;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .mega-column.locked {
+    opacity: 0; pointer-events: none; transform: scale(0.9);
+  }
+  .mega-column.revealed {
+    opacity: 1; pointer-events: all; transform: scale(1);
+  }
+
+  .category-header.mega-header {
+    background: linear-gradient(145deg, #7c2d12, #b45309);
+    border-color: var(--gold-400);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.3),
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                0 0 30px rgba(245,197,24,0.25);
+    position: relative; overflow: visible;
+  }
+  .mega-badge {
+    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: var(--gold-400); color: var(--plum-900);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 0.65rem; letter-spacing: 0.2em; padding: 3px 10px;
+    border-radius: 20px; white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(245,197,24,0.5);
+  }
+
+  .tile.mega-tile {
+    background: linear-gradient(145deg, #431407, #7c2d12);
+    border-color: var(--gold-400);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.35),
+                inset 0 1px 0 rgba(245,197,24,0.3),
+                0 0 20px rgba(245,197,24,0.1);
+  }
+  .tile.mega-tile:hover {
+    box-shadow: 0 10px 0 rgba(0,0,0,0.35),
+                0 10px 40px rgba(245,197,24,0.4),
+                inset 0 1px 0 rgba(245,197,24,0.4);
+    background: linear-gradient(145deg, #7c2d12, #431407);
+  }
+  .tile.mega-tile .tile-points {
+    font-size: 2.2rem;
+    text-shadow: 0 2px 0 var(--gold-600), 0 0 20px rgba(245,197,24,0.6);
+  }
+  .tile.mega-tile .tile-pts-label {
+    font-family: 'Manrope', sans-serif; font-size: 0.6rem;
+    letter-spacing: 0.15em; color: var(--gold-400); text-transform: uppercase;
+    margin-top: 4px; opacity: 0.8;
+  }
+  .tile.mega-tile.used { background: var(--used); border-color: #3a2a4a; box-shadow: inset 0 2px 10px rgba(0,0,0,0.4); }
+
+  /* Reveal mega button */
+  .reveal-mega-btn {
+    background: transparent; border: 1px dashed rgba(245,197,24,0.35);
+    color: rgba(245,197,24,0.5); padding: 8px 18px; border-radius: 6px;
+    font-family: 'Manrope', sans-serif; font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.12em; cursor: pointer; transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .reveal-mega-btn:hover { border-color: var(--gold-400); color: var(--gold-400); background: rgba(245,197,24,0.06); }
+  .reveal-mega-btn.active { border-style: solid; border-color: var(--gold-400); color: var(--gold-400); }
+
+  /* Mega question view */
+  .mega-q-body { gap: 20px; }
+  .mega-prompts {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%;
+  }
+  .mega-prompt-card {
+    background: linear-gradient(145deg, var(--plum-800), var(--plum-700));
+    border: 2px solid rgba(245,197,24,0.35); border-radius: 14px;
+    padding: 20px 16px; display: flex; flex-direction: column;
+    align-items: center; gap: 12px;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.25);
+  }
+  .mega-prompt-label {
+    font-family: 'Manrope', sans-serif; font-size: 0.7rem;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-400);
+  }
+  .mega-emoji {
+    font-size: clamp(2.2rem, 5vw, 4rem); text-align: center; line-height: 1.3;
+  }
+  .mega-hint {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: 0.78rem; color: var(--cream-dim); text-align: center;
+  }
+  .mega-answer-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%;
+    margin-top: 10px;
+  }
+  .mega-answer-card {
+    border-radius: 10px; padding: 14px 16px; text-align: center;
+  }
+  .mega-answer-card.movie-ans { background: rgba(230,62,146,0.3); border: 1px solid rgba(230,62,146,0.5); }
+  .mega-answer-card.song-ans  { background: rgba(245,197,24,0.15); border: 1px solid rgba(245,197,24,0.4); }
+  .mega-answer-lbl {
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    margin-bottom: 8px; color: var(--cream-dim);
+  }
+  .mega-answer-val {
+    font-family: 'Playfair Display', serif; font-weight: 800;
+    font-size: clamp(1.1rem, 2.5vw, 1.6rem); color: var(--cream); line-height: 1.2;
+  }
+  .mega-dialogue-note {
+    text-align: center; padding: 14px 20px;
+    background: rgba(255,255,255,0.05); border-radius: 10px;
+    border: 1px dashed rgba(245,197,24,0.3);
+    font-family: 'Playfair Display', serif; font-style: italic;
+    color: var(--cream-dim); font-size: 0.95rem;
+    width: 100%;
+  }
+  @media (max-width: 900px) {
+    .mega-prompts, .mega-answer-grid { grid-template-columns: 1fr; }
+  }
+    background: transparent; border: 1px solid rgba(245,197,24,0.35);
+    color: var(--cream-dim); padding: 8px 18px; border-radius: 6px;
+    font-family: 'Manrope', sans-serif; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sb-nav-btn:hover { border-color: var(--gold-400); color: var(--gold-400); }
+
+  /* ===================== WAITING CARD ===================== */
+  .q-prompt.q-hidden,
+  .q-media.q-hidden { display: none; }
+
+  .waiting-card {
+    width: 100%; padding: 48px 24px;
+    background: linear-gradient(145deg, var(--plum-800), var(--plum-700));
+    border: 2px dashed rgba(245,197,24,0.3); border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.3);
+  }
+  .waiting-card.hidden { display: none; }
+  .waiting-icon { font-size: 2.8rem; opacity: 0.6; }
+  .waiting-text {
+    font-family: 'Playfair Display', Georgia, serif; font-style: italic;
+    font-size: 1.2rem; color: var(--cream-dim); text-align: center;
+    line-height: 1.5; max-width: 480px;
+  }
+  .waiting-text strong {
+    color: var(--gold-400); font-style: normal;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.3em; letter-spacing: 0.05em;
+  }
+  .q-prompt.q-revealed,
+  .q-media.q-revealed {
+    animation: q-reveal 0.45s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  }
+  @keyframes q-reveal {
+    0%  { opacity: 0; transform: scale(0.94) translateY(12px); }
+    100%{ opacity: 1; transform: scale(1)    translateY(0); }
+  }
+
+  /* ===================== LANDING PAGE ===================== */
+  #landing-view {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  /* Film strip bands */
+  .ll-strip {
+    background: #090311;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .ll-hole {
+    width: 22px; height: 18px; border-radius: 3px;
+    background: var(--plum-900);
+    flex-shrink: 0;
+    margin-left: 54px;
+  }
+  .ll-hole:first-child { margin-left: 20px; }
+
+  /* Hero logo block */
+  .ll-hero {
+    text-align: center;
+    padding: 48px 40px 40px;
+    position: relative;
+    border-bottom: 1px solid rgba(245,197,24,0.15);
+  }
+  .ll-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 500px at 50% 50%, rgba(59,17,80,0.55), transparent 70%),
+      radial-gradient(600px 300px at 20% 30%, rgba(230,62,146,0.12), transparent 60%),
+      radial-gradient(600px 300px at 80% 70%, rgba(245,197,24,0.08), transparent 60%);
+    pointer-events: none;
+  }
+  .ll-igsa-label {
+    font-family: 'Manrope', sans-serif; font-size: 0.75rem;
+    letter-spacing: 0.55em; color: var(--cream-dim); opacity: 0.7;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .ll-title {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: clamp(4rem, 10vw, 8rem);
+    color: var(--gold-400); letter-spacing: 0.06em; line-height: 0.9;
+    text-shadow: 0 3px 0 var(--gold-600);
+  }
+  .ll-subtitle {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic; font-size: clamp(1.4rem, 3vw, 2.2rem);
+    color: var(--cream); margin-top: 6px; letter-spacing: 0.05em;
+  }
+  .ll-divider {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; margin: 18px auto; max-width: 400px;
+  }
+  .ll-divider-line { flex: 1; height: 1px; background: rgba(245,197,24,0.3); }
+  .ll-divider-gem {
+    width: 10px; height: 10px; background: var(--magenta-500);
+    transform: rotate(45deg);
+  }
+  .ll-cat-row {
+    font-size: 1.5rem; letter-spacing: 0.5em; margin-top: 6px; opacity: 0.8;
+  }
+  .ll-tagline {
+    font-family: 'Manrope', sans-serif; font-size: 0.95rem;
+    color: var(--cream-dim); margin-top: 14px; letter-spacing: 0.04em;
+    font-style: italic;
+  }
+
+  /* Body container */
+  .ll-body {
+    flex: 1;
+    max-width: 1200px; width: 100%;
+    margin: 0 auto;
+    padding: 48px 40px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+  }
+
+  /* Section headings */
+  .ll-section-title {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.5rem; letter-spacing: 0.12em; color: var(--gold-400);
+    margin-bottom: 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .ll-section-title::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(to right, rgba(245,197,24,0.35), transparent);
+  }
+
+  /* Rules + Timing two-column */
+  .ll-two-col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+  }
+
+  /* Rules list */
+  .ll-rules { display: flex; flex-direction: column; gap: 14px; }
+  .ll-rule {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, var(--plum-800), var(--plum-700));
+    border: 1px solid rgba(245,197,24,0.15); border-radius: 10px;
+  }
+  .ll-rule-num {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.3rem; color: var(--gold-400);
+    background: rgba(245,197,24,0.1);
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; border: 1px solid rgba(245,197,24,0.3);
+  }
+  .ll-rule-text {
+    font-family: 'Manrope', sans-serif; font-size: 0.92rem;
+    color: var(--cream-dim); line-height: 1.5; padding-top: 4px;
+  }
+  .ll-rule-text strong { color: var(--cream); font-weight: 600; }
+
+  /* Timing table */
+  .ll-timing { display: flex; flex-direction: column; gap: 10px; }
+  .ll-timing-row {
+    display: grid; grid-template-columns: 60px 80px 1fr auto;
+    align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, var(--plum-800), var(--plum-700));
+    border: 1px solid rgba(245,197,24,0.15); border-radius: 10px;
+  }
+  .ll-pts {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.6rem; color: var(--gold-400);
+    letter-spacing: 0.05em; line-height: 1;
+  }
+  .ll-diff {
+    font-family: 'Manrope', sans-serif; font-size: 0.72rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 600; padding: 3px 8px; border-radius: 4px;
+  }
+  .ll-diff.easy   { background: rgba(34,197,94,0.15);  color: #4ade80; }
+  .ll-diff.medium { background: rgba(245,197,24,0.15); color: var(--gold-400); }
+  .ll-diff.hard   { background: rgba(249,115,22,0.15); color: #fb923c; }
+  .ll-diff.expert { background: rgba(230,62,146,0.15); color: var(--magenta-500); }
+  .ll-time-bar-wrap {
+    height: 6px; background: rgba(255,255,255,0.08);
+    border-radius: 3px; overflow: hidden;
+  }
+  .ll-time-bar { height: 100%; border-radius: 3px; }
+  .ll-time-val {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1rem; color: var(--cream-dim); letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  /* Category cards */
+  .ll-cats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  .ll-cat-card {
+    background: linear-gradient(145deg, var(--plum-800), var(--plum-700));
+    border: 1px solid rgba(245,197,24,0.2); border-radius: 12px;
+    padding: 20px 16px; text-align: center;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+  }
+  .ll-cat-icon  { font-size: 2rem; margin-bottom: 8px; }
+  .ll-cat-name  {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.05rem; letter-spacing: 0.05em;
+    color: var(--cream); margin-bottom: 6px;
+  }
+  .ll-cat-desc  {
+    font-size: 0.75rem; color: var(--cream-dim);
+    font-family: 'Manrope', sans-serif;
+    line-height: 1.4; font-style: italic; margin-bottom: 10px;
+  }
+  .ll-cat-time  {
+    font-family: 'Manrope', sans-serif; font-size: 0.7rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--magenta-500); font-weight: 600;
+  }
+
+  /* Example cards */
+  .ll-examples-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  .ll-example-card {
+    background: linear-gradient(145deg, var(--plum-800), var(--plum-700));
+    border: 2px solid rgba(245,197,24,0.25); border-radius: 14px;
+    padding: 24px 22px;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+  }
+  .ll-ex-cat {
+    font-family: 'Manrope', sans-serif; font-size: 0.72rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold-400); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ll-ex-emoji {
+    font-size: clamp(2rem, 4vw, 3rem);
+    padding: 16px;
+    background: rgba(0,0,0,0.2); border-radius: 10px;
+    text-align: center; letter-spacing: 0.1em;
+    border: 1px dashed rgba(245,197,24,0.2);
+    margin-bottom: 14px; line-height: 1.4;
+  }
+  .ll-ex-hint {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: 0.82rem; color: var(--cream-dim); margin-bottom: 10px;
+  }
+  .ll-ex-reveal-btn {
+    width: 100%; padding: 11px;
+    background: transparent;
+    border: 1.5px dashed rgba(245,197,24,0.45);
+    border-radius: 8px;
+    color: var(--gold-400);
+    font-family: 'Manrope', sans-serif; font-size: 0.88rem;
+    font-weight: 600; letter-spacing: 0.08em;
+    cursor: pointer; transition: all 0.18s;
+    margin-bottom: 0;
+  }
+  .ll-ex-reveal-btn:hover {
+    background: rgba(245,197,24,0.08);
+    border-color: var(--gold-400);
+    transform: translateY(-1px);
+  }
+  .ll-ex-answer {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--magenta-600); border-radius: 8px;
+    animation: q-reveal 0.4s cubic-bezier(0.2,0.9,0.4,1.1);
+  }
+  .ll-ex-answer-label {
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(255,244,230,0.65); white-space: nowrap;
+  }
+  .ll-ex-answer-text {
+    font-family: 'Playfair Display', serif; font-weight: 800;
+    font-size: 1.05rem; color: var(--cream);
+  }
+
+  /* Proceed button */
+  .ll-proceed-wrap {
+    text-align: center; padding-bottom: 20px;
+  }
+  .ll-proceed-btn {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.8rem; letter-spacing: 0.15em;
+    background: linear-gradient(145deg, var(--gold-400), var(--gold-500));
+    color: var(--plum-900); border: none;
+    padding: 20px 64px; border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 var(--gold-600), 0 10px 40px rgba(245,197,24,0.35);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .ll-proceed-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 0 var(--gold-600), 0 14px 50px rgba(245,197,24,0.5);
+  }
+  .ll-proceed-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 var(--gold-600);
+  }
+  .ll-proceed-note {
+    margin-top: 14px; font-size: 0.82rem;
+    color: var(--muted); font-style: italic;
+  }
+
+  @media (max-width: 900px) {
+    .ll-two-col, .ll-cats-grid, .ll-examples-grid { grid-template-columns: 1fr; }
+    .ll-body { padding: 32px 16px; }
+  }
+
+  /* ===================== RESPONSIVE ===================== */
+  @media (max-width: 900px) {
+    #home-view, #question-view, #scoreboard-view { padding: 24px 16px; }
+    .board { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .tile { min-height: 80px; padding: 20px 12px; }
+    .tile-points { font-size: 2rem; }
+    .category-header { min-height: 80px; padding: 12px 10px; }
+    .category-name { font-size: 1rem; }
+    .q-header { flex-direction: column; gap: 12px; text-align: center; }
+    .timer-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LANDING PAGE ===================== -->
+<div id="landing-view" class="view">
+
+  <!-- Film strip top -->
+  <div class="ll-strip">
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+  </div>
+
+  <!-- Hero logo section -->
+  <div class="ll-hero">
+    <div class="ll-igsa-label">I G S A  Presents</div>
+    <div class="ll-title">BOLLYWOOD</div>
+    <div class="ll-subtitle">Quiz Night</div>
+    <div class="ll-divider">
+      <div class="ll-divider-line"></div>
+      <div class="ll-divider-gem"></div>
+      <div class="ll-divider-line"></div>
+    </div>
+    <div class="ll-cat-row">🎬 &nbsp; 🎵 &nbsp; 🎙️ &nbsp; 🕺</div>
+    <p class="ll-tagline">4 categories · 16 questions · one Bollywood champion</p>
+  </div>
+
+  <!-- Film strip mid -->
+  <div class="ll-strip">
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+  </div>
+
+  <div class="ll-body">
+
+    <!-- Rules + Timing -->
+    <div class="ll-two-col">
+
+      <!-- Rules -->
+      <div>
+        <div class="ll-section-title">⚡ How to Play</div>
+        <div class="ll-rules">
+          <div class="ll-rule">
+            <div class="ll-rule-num">1</div>
+            <div class="ll-rule-text">Teams take turns picking any <strong>category</strong> and a <strong>point value</strong> from the board</div>
+          </div>
+          <div class="ll-rule">
+            <div class="ll-rule-num">2</div>
+            <div class="ll-rule-text">Host sets the timer, presses <strong>Start</strong> — the question is revealed and the clock begins</div>
+          </div>
+          <div class="ll-rule">
+            <div class="ll-rule-num">3</div>
+            <div class="ll-rule-text">Team must answer <strong>before time runs out</strong>. Correct answer earns the points</div>
+          </div>
+          <div class="ll-rule">
+            <div class="ll-rule-num">4</div>
+            <div class="ll-rule-text">Host clicks <strong>Reveal Answer</strong> to confirm, then awards points via the scoreboard buttons</div>
+          </div>
+          <div class="ll-rule">
+            <div class="ll-rule-num">5</div>
+            <div class="ll-rule-text">Each tile is used <strong>only once</strong>. Team with the most points at the end wins!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timing guide -->
+      <div>
+        <div class="ll-section-title">⏱ Suggested Timings</div>
+        <div class="ll-timing">
+          <div class="ll-timing-row">
+            <div class="ll-pts">10</div>
+            <div class="ll-diff easy">Easy</div>
+            <div class="ll-time-bar-wrap">
+              <div class="ll-time-bar" style="width:33%;background:#4ade80;"></div>
+            </div>
+            <div class="ll-time-val">≈ 20 sec</div>
+          </div>
+          <div class="ll-timing-row">
+            <div class="ll-pts">20</div>
+            <div class="ll-diff medium">Medium</div>
+            <div class="ll-time-bar-wrap">
+              <div class="ll-time-bar" style="width:50%;background:var(--gold-400);"></div>
+            </div>
+            <div class="ll-time-val">≈ 30 sec</div>
+          </div>
+          <div class="ll-timing-row">
+            <div class="ll-pts">30</div>
+            <div class="ll-diff hard">Hard</div>
+            <div class="ll-time-bar-wrap">
+              <div class="ll-time-bar" style="width:70%;background:#fb923c;"></div>
+            </div>
+            <div class="ll-time-val">≈ 45 sec</div>
+          </div>
+          <div class="ll-timing-row">
+            <div class="ll-pts">50</div>
+            <div class="ll-diff expert">Expert</div>
+            <div class="ll-time-bar-wrap">
+              <div class="ll-time-bar" style="width:100%;background:var(--magenta-500);"></div>
+            </div>
+            <div class="ll-time-val">≈ 60 sec</div>
+          </div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:12px;font-style:italic;font-family:'Manrope',sans-serif;">
+          These are recommendations — the host can set any time on the timer before starting each question.
+        </p>
+      </div>
+
+    </div><!-- /.ll-two-col -->
+
+    <!-- Categories -->
+    <div>
+      <div class="ll-section-title">🎬 The 4 Categories</div>
+      <div class="ll-cats-grid">
+        <div class="ll-cat-card">
+          <div class="ll-cat-icon">🎬</div>
+          <div class="ll-cat-name">Guess the Movie</div>
+          <div class="ll-cat-desc">A set of emojis hints at a Bollywood film — decode them and name the movie</div>
+          <div class="ll-cat-time">Emoji clues</div>
+        </div>
+        <div class="ll-cat-card">
+          <div class="ll-cat-icon">🎵</div>
+          <div class="ll-cat-name">Guess the Song</div>
+          <div class="ll-cat-desc">Emojis represent a popular Bollywood song — figure out the title</div>
+          <div class="ll-cat-time">Emoji clues</div>
+        </div>
+        <div class="ll-cat-card">
+          <div class="ll-cat-icon">🎙️</div>
+          <div class="ll-cat-name">Guess the Dialogue</div>
+          <div class="ll-cat-desc">A character photo is shown — say their most iconic dialogue from the film</div>
+          <div class="ll-cat-time">Image clue</div>
+        </div>
+        <div class="ll-cat-card">
+          <div class="ll-cat-icon">🕺</div>
+          <div class="ll-cat-name">Hook Step Challenge</div>
+          <div class="ll-cat-desc">The song name is revealed — your whole team must perform the famous hook step!</div>
+          <div class="ll-cat-time">Performance!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Examples -->
+    <div>
+      <div class="ll-section-title">💡 Sample Questions</div>
+      <div class="ll-examples-grid">
+
+        <!-- Example 1: Guess the Movie -->
+        <div class="ll-example-card">
+          <div class="ll-ex-cat">🎬 &nbsp; Guess the Movie — can you crack it?</div>
+          <div class="ll-ex-emoji">🧤 🟡 🔵 🔴 💜 🟠 💚 ⚡ 🛡️ ⚙️</div>
+          <div class="ll-ex-hint">Decode the emojis → name the Bollywood / Hollywood film</div>
+          <button class="ll-ex-reveal-btn" onclick="revealExample(this)">🤔 Reveal Answer</button>
+          <div class="ll-ex-answer hidden">
+            <span class="ll-ex-answer-label">Answer</span>
+            <span class="ll-ex-answer-text">Avengers: Infinity War</span>
+          </div>
+        </div>
+
+        <!-- Example 2: Guess the Song -->
+        <div class="ll-example-card">
+          <div class="ll-ex-cat">🎵 &nbsp; Guess the Song — name that Bollywood banger!</div>
+          <div class="ll-ex-emoji">🕶️ 🖤 🕶️ 💃 🎶 ✨</div>
+          <div class="ll-ex-hint">Decode the emojis → name the song</div>
+          <button class="ll-ex-reveal-btn" onclick="revealExample(this)">🤔 Reveal Answer</button>
+          <div class="ll-ex-answer hidden">
+            <span class="ll-ex-answer-label">Answer</span>
+            <span class="ll-ex-answer-text">Kala Chashma</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Proceed button -->
+    <div class="ll-proceed-wrap">
+      <button class="ll-proceed-btn" id="proceed-btn">🎬 &nbsp; Let's Play!</button>
+      <p class="ll-proceed-note">Good luck to all teams — may the best Bollywood fan win!</p>
+    </div>
+
+  </div><!-- /.ll-body -->
+
+  <!-- Film strip bottom -->
+  <div class="ll-strip">
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+    <div class="ll-hole"></div><div class="ll-hole"></div><div class="ll-hole"></div>
+  </div>
+
+</div><!-- /#landing-view -->
+
+<!-- ===================== HOME / BOARD VIEW ===================== -->
+<div id="home-view" class="view hidden">
+  <div class="home-header">
+    <div class="chip-row">🎬 🎵 🎙️ 🕺</div>
+    <h1 class="title">BOLLYWOOD <em>Quiz Night</em></h1>
+    <p class="tagline">Pick a category — claim your points — let the games begin</p>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div class="home-footer">
+    <div>Banquet 2026</div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="reveal-mega-btn" id="reveal-mega-btn">⭐ Reveal Mega</button>
+      <button class="sb-nav-btn" id="go-scoreboard">🏆 Scoreboard</button>
+      <div class="reset-wrap">
+      <button class="reset-btn" id="reset-btn">Reset Board</button>
+      <div class="reset-confirm hidden" id="reset-confirm">
+        <span>Reset all tiles?</span>
+        <button class="reset-no"  id="reset-no">Cancel</button>
+        <button class="reset-yes" id="reset-yes">Yes, reset</button>
+      </div>
+      </div><!-- /.reset-wrap -->
+    </div><!-- /.btn-group -->
+  </div><!-- /.home-footer -->
+</div><!-- /#home-view -->
+
+<!-- ===================== QUESTION VIEW ===================== -->
+<div id="question-view" class="view hidden">
+  <div class="q-header">
+    <div class="q-category">
+      <div class="q-category-icon" id="q-icon">🎬</div>
+      <div class="q-category-text">
+        <span class="q-category-label">Category</span>
+        <span class="q-category-name" id="q-category-name">—</span>
+        <span class="q-category-sub" id="q-category-sub"></span>
+      </div>
+    </div>
+    <div class="q-points">
+      <span id="q-points">0</span><sub>pts</sub>
+    </div>
+  </div>
+
+  <div class="q-body">
+
+    <!-- TIMER -->
+    <div class="timer-row" id="timer-row">
+      <div class="t-ring-wrap" id="t-ring-wrap">
+        <svg class="t-svg" viewBox="0 0 76 76">
+          <circle class="t-ring-bg" cx="38" cy="38" r="32"/>
+          <circle class="t-ring-fg" id="t-ring-fg" cx="38" cy="38" r="32"
+                  stroke-dasharray="201.06" stroke-dashoffset="0"/>
+        </svg>
+        <span class="t-count" id="t-count">30</span>
+      </div>
+      <div class="t-main">
+        <div class="t-progress-track">
+          <div class="t-progress-fill" id="t-progress-fill"></div>
+        </div>
+        <div class="t-controls">
+          <button class="t-btn go" id="t-start">▶ Start</button>
+          <button class="t-btn" id="t-pause" disabled>⏸ Pause</button>
+          <button class="t-btn" id="t-reset">↺ Reset</button>
+          <span class="t-sep">|</span>
+          <div class="t-set">
+            <span>Secs:</span>
+            <input type="number" id="t-secs-input" value="30" min="5" max="120">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-prompt" id="q-prompt">—</div>
+    <div class="q-media" id="q-media"></div>
+
+    <!-- WAITING CARD — shown before timer starts, hidden once it starts -->
+    <div class="waiting-card" id="waiting-card">
+      <div class="waiting-icon">⏱</div>
+      <div class="waiting-text">Set your timer and press <strong>Start</strong> to reveal the question</div>
+    </div>
+
+    <button class="reveal-btn hidden" id="reveal-btn">
+      ✨ Reveal Answer
+    </button>
+
+    <div class="answer-box hidden" id="answer-box">
+      <div class="answer-label">The Answer Is</div>
+      <div class="answer-text" id="answer-text">—</div>
+      <div class="answer-media" id="answer-media"></div>
+
+      <!-- AWARD POINTS -->
+      <div class="award-section" id="award-section">
+        <div class="award-title" id="award-title">Award Points to Team</div>
+        <div class="award-teams" id="award-teams"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-footer">
+    <button class="back-btn">← Back to Board</button>
+    <label class="mark-used">
+      <input type="checkbox" id="mark-used-checkbox" checked>
+      Mark this tile as used
+    </label>
+  </div>
+</div><!-- /#question-view -->
+
+<!-- ===================== SCOREBOARD VIEW ===================== -->
+<div id="scoreboard-view" class="view hidden">
+  <div class="sb-header">
+    <div>
+      <div class="sb-title">🏆 Scoreboard</div>
+      <div class="sb-subtitle">Track your teams — crown your champion</div>
+    </div>
+    <button class="sb-back-btn" id="sb-back-btn">← Back to Game</button>
+  </div>
+  <div class="sb-grid" id="sb-grid">
+    <!-- team cards injected by JS -->
+  </div>
+  <div class="sb-footer">Click a team name to rename it &nbsp;·&nbsp; Use + / − to adjust scores</div>
+</div><!-- /#scoreboard-view -->
+
+<script>
+// ================================================================
+//   GAME DATA — EDIT BELOW TO CHANGE QUESTIONS / ADD MEDIA
+// ================================================================
+//
+// Each category has exactly 4 questions keyed by point value: 5, 10, 20, 50.
+// Optional media fields (leave "" if not used):
+//   promptAudio, promptImage, promptVideo
+//   answerAudio, answerImage, answerVideo
+// Paths are relative to this HTML file, e.g. "audio/q1.mp3"
+// ================================================================
+
+const GAME_DATA = {
+  categories: [
+    {
+      id: "movie",
+      name: "Guess the Movie",
+      subtitle: "Decode the emojis → name the film",
+      icon: "🎬",
+      questions: {
+        5:  { prompt: "🏠💐",              answer: "Housefull" },
+        10: { prompt: "💥💥",              answer: "Bang Bang!" },
+        20: { prompt: "💑❤️🤲😍",            answer: "Hum Dil De Chuke Sanam" },
+        50: { prompt: "🐴⚔️💃❤️",            answer: "Bajirao Mastani" }
+      }
+      // EXTRA movie questions you can swap in:
+      //   "🕊️✋B" → Udta Punjab
+      //   "😴💭👧" → Dream Girl
+      //   "👎📰" → Bad Newwz
+      //   "🏃‍♂️🥛🏃‍♂️" → Bhaag Milkha Bhaag
+      //   "🚗✅📞🚗✅" → Karthik Calling Karthik
+      //   "🧘‍♂️🤫🧘‍♂️" → Om Shanti Om
+    },
+    {
+      id: "song",
+      name: "Guess the Song",
+      subtitle: "Decode the emojis → name the banger",
+      icon: "🎵",
+      questions: {
+        5:  { prompt: "🔺👁️🕶️🕺🎂",          answer: "Illuminati" },
+        10: { prompt: "💜💦🔫😎💃🕺🌿🔫",     answer: "Balam Pichkari" },
+        20: { prompt: "👔🕺🍾🎷✋😮",          answer: "Badtameez Dil" },
+        50: { prompt: "👁️⚡👁️❤️",              answer: "Tenu Naina Ladava — Dhurandhar" }
+      }
+      // EXTRA song questions you can swap in:
+      //   "🚢📦🏗️👠💃" → Monica Bellucci
+      //   "🌊💃🥥👀🐚💖🧜‍♀️" → Chutamalle
+      //   "👮‍♂️💥🔫💪" → Aari Aari
+    },
+    {
+      id: "dialogue",
+      name: "Guess the Dialogue",
+      subtitle: "See the character → quote their line",
+      icon: "🎙️",
+      // HOW TO ADD IMAGES:
+      //   1. Create a folder called "images" next to this HTML file
+      //   2. Add a character photo/screenshot as images/d1.jpg, d2.jpg, etc.
+      //   3. Uncomment the promptImage line for that question
+      // The image is the QUESTION — participants guess the famous dialogue.
+      // The ANSWER reveals the actual dialogue text.
+      questions: {
+        5:  {
+          prompt: "🎙️",
+          subtitle: "Look at the character — guess their iconic dialogue!",
+          promptImage: "images/5_zor.jpg",  // ← Add: "images/d1.jpg"
+          answer: "Zor zor se bolke logo ko scheme bata de",
+        },
+        10: {
+          prompt: "🎙️",
+          subtitle: "Look at the character — guess their iconic dialogue!",
+          promptImage: "images/10_pushpa.jpg",  // ← Add: "images/d2.jpg"
+          answer: "Pushpa mane flower samje kya? Wild flowerrr",
+        },
+        20: {
+          prompt: "🎙️",
+          subtitle: "Look at the character — guess their iconic dialogue!",
+          promptImage: "images/20_kehna.jpg",  // ← Add: "images/d3.jpg"
+          answer: "\"Kahna kya chahte ho?\"",
+        },
+        50: {
+          prompt: "🎙️",
+          subtitle: "Look at the character — guess their iconic dialogue!",
+          promptImage: "images/50_bhgambhag.jpg",  // ← Add: "images/d4.jpg"
+          answer: "Sheetal shaam ko 5:00 baje aaya ya Sheetal raat ko 12:00 baje aaya, Sheetal toh Sheetal hai... Sheetal Aditi toh nahi hai na?",
+        }
+      }
+    },
+    {
+      id: "hookstep",
+      name: "Hook Step Challenge",
+      subtitle: "Hear the song name → do the hook step",
+      icon: "🕺",
+      questions: {
+        5:  {
+          prompt: "🕺💃",
+          subtitle: "Do the hook step for this song!",
+          answer: "Ek Pal Ka Jeena — Kaho Na Pyaar Hai",
+          // promptVideo: "video/hook_ekpal.mp4"
+        },
+        10: {
+          prompt: "🕺💃",
+          subtitle: "Do the hook step for this song!",
+          answer: "Tenu Naina Ladava — Dhurandhar",
+          // promptVideo: "video/hook_tenu.mp4"
+        },
+        20: {
+          prompt: "🕺💃",
+          subtitle: "Do the hook step for this song!",
+          answer: "Kajra Re — Bunty Aur Babli",
+          // promptVideo: "video/hook_kajra.mp4"
+        },
+        50: {
+          prompt: "🕺💃",
+          subtitle: "Do the hook step for this song!",
+          answer: "Fevicol Se — Dabangg 2",
+          // promptVideo: "video/hook_fevicol.mp4"
+        }
+      }
+    }
+  ]
+};
+
+// ================================================================
+//   MEGA CATEGORY DATA
+//   Each question = movie emoji + song emoji + dialogue bonus
+//   All tiles worth 50 pts each
+// ================================================================
+const MEGA_DATA = {
+  id: 'mega',
+  name: 'MEGA ROUND',
+  subtitle: 'Movie emoji + Song emoji + Dialogue = 50 pts',
+  icon: '⭐',
+  questions: {
+    1: {
+      movieEmoji:  '👫🫀🤲💝',
+      songEmoji:   '🌙🙈☁️🌧️',
+      movieAnswer: 'Hum Dil De Chuke Sanam',
+      songAnswer:  'Chand Chupa Badal Mein',
+    },
+    2: {
+      // Animal — deliberately hard emojis (no animal imagery)
+      movieEmoji:  '👨‍👦💢🔫🩸',
+      songEmoji:   '☀️🤜🎺🕺',
+      movieAnswer: 'Animal',
+      songAnswer:  'Arjan Vailly',
+    },
+    3: {
+      movieEmoji:  '🕵️‍♂️🌍🔫🇮🇳',
+      songEmoji:   '🕺🌴🔥🎶',
+      movieAnswer: 'Pathaan',
+      songAnswer:  'Jhoome Jo Pathaan',
+    }
+  }
+};
+
+const POINT_VALUES = [10, 20, 30, 50];   // display/scoring values
+const PTS_MAP      = {10:5, 20:10, 30:20, 50:50}; // display → internal data key
+const STORAGE_KEY  = 'bollywoodQuizUsed_v1';
+const TEAMS_KEY    = 'bollywoodQuizTeams_v1';
+const MEGA_KEY     = 'bollywoodQuizMegaRevealed_v1';
+const TEAM_COLORS  = ['#e63e92','#f5c518','#3b82f6','#22c55e','#f97316','#a855f7','#06b6d4','#ef4444'];
+const RANK_MEDALS  = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
+const TIMER_CIRCUMFERENCE = 201.06;
+
+let usedTiles   = loadUsedTiles();
+let currentTile = null;
+let teams       = loadTeams();
+let megaRevealed = loadMegaRevealed();
+
+// ---- Timer state ----
+let timerTotal    = 30;
+let timerLeft     = 30;
+let timerInterval = null;
+let timerRunning  = false;
+
+function loadMegaRevealed() {
+  try { return localStorage.getItem(MEGA_KEY) === 'true'; } catch(e) { return false; }
+}
+function saveMegaRevealed(val) {
+  try { localStorage.setItem(MEGA_KEY, val ? 'true' : 'false'); } catch(e) {}
+}
+
+function loadUsedTiles() {
+  try { const r = localStorage.getItem(STORAGE_KEY); return r ? new Set(JSON.parse(r)) : new Set(); }
+  catch(e) { return new Set(); }
+}
+function saveUsedTiles() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...usedTiles])); } catch(e) {}
+}
+function tileKey(catId, pts) { return `${catId}:${pts}`; }
+
+function loadTeams() {
+  try { const r = localStorage.getItem(TEAMS_KEY); return r ? JSON.parse(r) : []; }
+  catch(e) { return []; }
+}
+function saveTeams() {
+  try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teams)); } catch(e) {}
+}
+function nextTeamColor() {
+  const used = new Set(teams.map(t => t.color));
+  return TEAM_COLORS.find(c => !used.has(c)) || TEAM_COLORS[teams.length % TEAM_COLORS.length];
+}
+function addTeam(name) {
+  if (!name.trim()) return;
+  teams.push({ id: Date.now(), name: name.trim(), score: 0, color: nextTeamColor() });
+  saveTeams();
+  renderScoreboard();
+}
+function removeTeam(id) {
+  teams = teams.filter(t => t.id !== id);
+  saveTeams();
+  renderScoreboard();
+}
+function adjustScore(id, delta) {
+  const t = teams.find(t => t.id === id);
+  if (t) { t.score = Math.max(0, t.score + delta); saveTeams(); renderScoreboard(); }
+}
+function renameTeam(id, name) {
+  const t = teams.find(t => t.id === id);
+  if (t && name.trim()) { t.name = name.trim(); saveTeams(); }
+}
+function awardPoints(teamId, pts) {
+  adjustScore(teamId, pts);
+  // Mark award button as done
+  document.querySelectorAll(`.award-btn[data-id="${teamId}"]`).forEach(b => {
+    b.classList.add('done');
+    b.querySelector('.checkmark').textContent = ' ✓';
+  });
+}
+
+// ---------------- Build the board ----------------
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  GAME_DATA.categories.forEach(cat => {
+    const col = document.createElement('div');
+    col.className = 'category-column';
+
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.innerHTML = `
+      <div class="category-icon">${cat.icon}</div>
+      <div class="category-name">${cat.name}</div>
+      <div class="category-sub">${cat.subtitle || ''}</div>
+    `;
+    col.appendChild(header);
+
+    POINT_VALUES.forEach(pts => {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      const key = tileKey(cat.id, pts);
+      if (usedTiles.has(key)) tile.classList.add('used');
+
+      tile.innerHTML = `<div class="tile-points">${pts}</div>`;
+      tile.onclick = () => {
+        if (usedTiles.has(key)) return;
+        openQuestion(cat.id, pts);
+      };
+      col.appendChild(tile);
+    });
+
+    board.appendChild(col);
+  });
+
+  // Mega column
+  const megaCol = document.createElement('div');
+  megaCol.className = 'category-column mega-column ' + (megaRevealed ? 'revealed' : 'locked');
+  megaCol.id = 'mega-column';
+
+  const megaHeader = document.createElement('div');
+  megaHeader.className = 'category-header mega-header';
+  megaHeader.innerHTML = `
+    <div class="mega-badge">✨ MEGA ROUND</div>
+    <div class="category-icon">${MEGA_DATA.icon}</div>
+    <div class="category-name">${MEGA_DATA.name}</div>
+    <div class="category-sub">${MEGA_DATA.subtitle}</div>
+  `;
+  megaCol.appendChild(megaHeader);
+
+  [1, 2, 3].forEach(qNum => {
+    const tile = document.createElement('div');
+    tile.className = 'tile mega-tile';
+    const key = tileKey('mega', qNum);
+    if (usedTiles.has(key)) tile.classList.add('used');
+    tile.innerHTML = `<div class="tile-points">⭐50</div><div class="tile-pts-label">Question ${qNum}</div>`;
+    tile.onclick = () => {
+      if (usedTiles.has(key)) return;
+      openMegaQuestion(qNum);
+    };
+    megaCol.appendChild(tile);
+  });
+
+  // 4th slot — decorative bonus indicator
+  const bonusTile = document.createElement('div');
+  bonusTile.className = 'tile mega-tile used';
+  bonusTile.style.cssText = 'cursor:default;opacity:0.35;';
+  bonusTile.innerHTML = `<div style="font-size:1.6rem">🏆</div><div class="tile-pts-label">Bonus Round</div>`;
+  megaCol.appendChild(bonusTile);
+
+  board.appendChild(megaCol);
+
+  // Sync reveal button state
+  const btn = document.getElementById('reveal-mega-btn');
+  if (btn) {
+    btn.textContent  = megaRevealed ? '🔒 Hide Mega' : '⭐ Reveal Mega';
+    btn.classList.toggle('active', megaRevealed);
+  }
+}
+
+// ---------------- Toggle Mega Column ----------------
+function toggleMega() {
+  megaRevealed = !megaRevealed;
+  saveMegaRevealed(megaRevealed);
+  const col = document.getElementById('mega-column');
+  if (col) {
+    col.classList.toggle('locked',    !megaRevealed);
+    col.classList.toggle('revealed',   megaRevealed);
+  }
+  const btn = document.getElementById('reveal-mega-btn');
+  if (btn) {
+    btn.textContent = megaRevealed ? '🔒 Hide Mega' : '⭐ Reveal Mega';
+    btn.classList.toggle('active', megaRevealed);
+  }
+}
+
+// ---------------- Open a Mega Question ----------------
+function openMegaQuestion(qNum) {
+  const q = MEGA_DATA.questions[qNum];
+  if (!q) return;
+
+  currentTile = { catId: 'mega', points: qNum };
+
+  // Header
+  document.getElementById('q-icon').textContent = MEGA_DATA.icon;
+  document.getElementById('q-category-name').textContent = MEGA_DATA.name;
+  document.getElementById('q-category-sub').textContent  = `Question ${qNum} of 3  ·  50 pts`;
+  document.getElementById('q-points').textContent = '50';
+
+  // Prompt — dual-card layout
+  const promptEl = document.getElementById('q-prompt');
+  promptEl.style.display = 'none'; // hide single-prompt box
+
+  const media = document.getElementById('q-media');
+  media.innerHTML = `
+    <div class="mega-prompts">
+      <div class="mega-prompt-card">
+        <div class="mega-prompt-label">🎬 Guess the Movie</div>
+        <div class="mega-emoji">${q.movieEmoji}</div>
+        <div class="mega-hint">Decode the emojis → name the film</div>
+      </div>
+      <div class="mega-prompt-card">
+        <div class="mega-prompt-label">🎵 Guess the Song</div>
+        <div class="mega-emoji">${q.songEmoji}</div>
+        <div class="mega-hint">Decode the emojis → name the song</div>
+      </div>
+    </div>
+    <div class="mega-dialogue-note">
+      💬 Bonus: Teams must also say an iconic dialogue from the movie!
+    </div>
+  `;
+
+  // Answer section
+  const answerLabel = document.querySelector('.answer-label');
+  answerLabel.textContent = '✅ Answers';
+  document.getElementById('answer-text').style.display = 'none';
+  document.getElementById('answer-media').innerHTML = `
+    <div class="mega-answer-grid">
+      <div class="mega-answer-card movie-ans">
+        <div class="mega-answer-lbl">🎬 Movie</div>
+        <div class="mega-answer-val">${q.movieAnswer}</div>
+      </div>
+      <div class="mega-answer-card song-ans">
+        <div class="mega-answer-lbl">🎵 Song</div>
+        <div class="mega-answer-val">${q.songAnswer}</div>
+      </div>
+    </div>
+  `;
+
+  // Reveal button
+  const revealBtn = document.getElementById('reveal-btn');
+  revealBtn.textContent = '✨ Reveal Answers';
+  revealBtn.classList.add('hidden'); // hidden until timer starts
+  document.getElementById('answer-box').classList.add('hidden');
+  document.getElementById('mark-used-checkbox').checked = true;
+
+  // Hide mega prompts behind waiting card
+  document.getElementById('q-prompt').classList.add('q-hidden');
+  document.getElementById('q-media').classList.add('q-hidden');
+  document.getElementById('waiting-card').classList.remove('hidden');
+
+  timerReset();
+
+  document.getElementById('home-view').classList.add('hidden');
+  document.getElementById('scoreboard-view').classList.add('hidden');
+  document.getElementById('question-view').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+// ---------------- Open a question ----------------
+function openQuestion(catId, pts) {
+  const cat = GAME_DATA.categories.find(c => c.id === catId);
+  if (!cat) return;
+  const dataKey = PTS_MAP[pts] !== undefined ? PTS_MAP[pts] : pts;
+  const q = cat.questions[dataKey];
+  if (!q) return;
+
+  currentTile = { catId, points: pts };
+
+  // Header
+  document.getElementById('q-icon').textContent = cat.icon;
+  document.getElementById('q-category-name').textContent = cat.name;
+  document.getElementById('q-category-sub').textContent = cat.subtitle || '';
+  document.getElementById('q-points').textContent = pts;
+
+  // Prompt
+  const promptEl = document.getElementById('q-prompt');
+  promptEl.classList.remove('text-prompt');
+  promptEl.style.display = '';
+
+  if (q.promptImage) {
+    // Image-first mode: hide the prompt box entirely — image in media section is the star
+    promptEl.style.display = 'none';
+  } else if (cat.id === 'dialogue') {
+    // Dialogue question but no image added yet — show a styled placeholder
+    promptEl.classList.add('text-prompt');
+    promptEl.innerHTML = `
+      <div style="text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:18px;">📷</div>
+        <div style="font-family:'Manrope',sans-serif;font-style:normal;font-size:0.35em;color:var(--cream-dim);letter-spacing:0.1em;text-transform:uppercase;line-height:1.8;">
+          No image added yet<br>
+          <span style="color:var(--gold-400);opacity:0.7;">${q.subtitle || ''}</span>
+        </div>
+      </div>
+    `;
+  } else if (cat.id === 'hookstep') {
+    // Hook step: the song name IS the prompt — show it big so teams can read and perform
+    promptEl.classList.add('text-prompt');
+    promptEl.innerHTML = `
+      <div style="text-align:center;">
+        <div style="font-family:'Manrope',sans-serif;font-style:normal;font-size:0.28em;
+                    color:var(--gold-400);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:16px;">
+          🕺 Do the hook step for:
+        </div>
+        <div style="font-size:1.05em;line-height:1.15;">${q.answer || ''}</div>
+      </div>
+    `;
+  } else if (q.promptText) {
+    // Text dialogue (legacy)
+    promptEl.classList.add('text-prompt');
+    promptEl.innerHTML = `
+      <div>
+        <div style="font-family:'Manrope',sans-serif;font-size:0.6em;font-style:normal;color:var(--cream-dim);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:18px;">${q.prompt || ''}</div>
+        <div>${q.promptText}</div>
+      </div>
+    `;
+  } else {
+    promptEl.textContent = q.prompt || '';
+    if (q.subtitle) {
+      promptEl.innerHTML = `
+        <div>
+          <div style="margin-bottom:18px;">${q.prompt || ''}</div>
+          <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:0.25em;color:var(--cream-dim);">${q.subtitle}</div>
+        </div>
+      `;
+    }
+  }
+
+  // Prompt media — image shown prominently when in image-first mode
+  const media = document.getElementById('q-media');
+  media.innerHTML = '';
+  if (q.promptImage) {
+    const img = makeImg(q.promptImage);
+    img.style.maxHeight = '65vh';
+    img.style.width = 'auto';
+    img.style.borderRadius = '16px';
+    img.style.border = '3px solid rgba(245,197,24,0.5)';
+    img.style.boxShadow = '0 20px 60px rgba(0,0,0,0.6)';
+    media.appendChild(img);
+
+    // Subtitle below the image
+    if (q.subtitle) {
+      const sub = document.createElement('div');
+      sub.style.cssText = "font-family:'Playfair Display',serif;font-style:italic;font-size:1.05rem;color:var(--cream-dim);text-align:center;margin-top:8px;";
+      sub.textContent = q.subtitle;
+      media.appendChild(sub);
+    }
+  }
+  if (q.promptVideo) media.appendChild(makeVideo(q.promptVideo));
+  if (q.promptAudio) media.appendChild(makeAudio(q.promptAudio));
+
+  // Answer
+  const answerLabel = document.querySelector('.answer-label');
+  if (cat.id === 'dialogue')        answerLabel.textContent = 'The Dialogue Is';
+  else if (cat.id === 'hookstep')   answerLabel.textContent = '✅ Confirmed!';
+  else                              answerLabel.textContent = 'The Answer Is';
+  document.getElementById('answer-text').textContent = q.answer || '—';
+  const ansMedia = document.getElementById('answer-media');
+  ansMedia.innerHTML = '';
+  if (q.answerImage) ansMedia.appendChild(makeImg(q.answerImage));
+  if (q.answerVideo) ansMedia.appendChild(makeVideo(q.answerVideo));
+  if (q.answerAudio) ansMedia.appendChild(makeAudio(q.answerAudio));
+
+  // Reveal button label
+  const revealBtn = document.getElementById('reveal-btn');
+  revealBtn.textContent = (cat.id === 'hookstep') ? '🏅 Award Points' : '✨ Reveal Answer';
+  revealBtn.classList.add('hidden'); // hidden until question is revealed
+
+  // Restore answer-text visibility (mega hides it)
+  document.getElementById('answer-text').style.display = '';
+
+  // Hide answer initially
+  document.getElementById('answer-box').classList.add('hidden');
+
+  // Hide the question prompt & media — show waiting card instead
+  document.getElementById('q-prompt').classList.add('q-hidden');
+  document.getElementById('q-media').classList.add('q-hidden');
+  document.getElementById('waiting-card').classList.remove('hidden');
+
+  // Mark-used checkbox default
+  document.getElementById('mark-used-checkbox').checked = true;
+
+  // Reset timer for new question
+  timerReset();
+
+  // Swap views
+  document.getElementById('home-view').classList.add('hidden');
+  document.getElementById('scoreboard-view').classList.add('hidden');
+  document.getElementById('question-view').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+function makeImg(src) {
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = '';
+  img.onerror = () => { img.style.display = 'none'; };
+  return img;
+}
+function makeVideo(src) {
+  const v = document.createElement('video');
+  v.src = src;
+  v.controls = true;
+  v.preload = 'metadata';
+  return v;
+}
+function makeAudio(src) {
+  const a = document.createElement('audio');
+  a.src = src;
+  a.controls = true;
+  a.preload = 'metadata';
+  return a;
+}
+
+// ---------------- Reveal answer ----------------
+function revealAnswer() {
+  document.getElementById('answer-box').classList.remove('hidden');
+  document.getElementById('reveal-btn').classList.add('hidden');
+  timerStop();
+  renderAwardPoints();
+}
+
+// ---------------- Back to board ----------------
+function showBoard() {
+  if (currentTile) {
+    const markUsed = document.getElementById('mark-used-checkbox').checked;
+    if (markUsed) {
+      usedTiles.add(tileKey(currentTile.catId, currentTile.points));
+      saveUsedTiles();
+      buildBoard();
+    }
+  }
+  document.querySelectorAll('#question-view audio, #question-view video').forEach(el => el.pause());
+  timerStop();
+  // Reset elements that mega/waiting state modifies
+  document.getElementById('q-prompt').style.display = '';
+  document.getElementById('q-prompt').classList.remove('q-hidden', 'q-revealed');
+  document.getElementById('q-media').classList.remove('q-hidden', 'q-revealed');
+  document.getElementById('waiting-card').classList.add('hidden');
+  document.getElementById('answer-text').style.display = '';
+  document.getElementById('answer-media').innerHTML = '';
+  currentTile = null;
+  document.getElementById('question-view').classList.add('hidden');
+  document.getElementById('scoreboard-view').classList.add('hidden');
+  document.getElementById('home-view').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+// ---------------- Scoreboard navigation ----------------
+function showScoreboard() {
+  document.getElementById('home-view').classList.add('hidden');
+  document.getElementById('question-view').classList.add('hidden');
+  document.getElementById('scoreboard-view').classList.remove('hidden');
+  renderScoreboard();
+  window.scrollTo(0, 0);
+}
+
+// ---------------- Reset board (inline confirmation) ----------------
+function showResetConfirm() {
+  document.getElementById('reset-btn').classList.add('hidden');
+  document.getElementById('reset-confirm').classList.remove('hidden');
+}
+function hideResetConfirm() {
+  document.getElementById('reset-confirm').classList.add('hidden');
+  document.getElementById('reset-btn').classList.remove('hidden');
+}
+function doReset() {
+  usedTiles.clear();
+  saveUsedTiles();
+  buildBoard();
+  hideResetConfirm();
+}
+
+// ---------------- Wire up buttons via addEventListener ----------------
+document.getElementById('reveal-btn').addEventListener('click', revealAnswer);
+document.querySelector('.back-btn').addEventListener('click', showBoard);
+document.getElementById('reset-btn').addEventListener('click', showResetConfirm);
+document.getElementById('reset-no').addEventListener('click', hideResetConfirm);
+document.getElementById('reset-yes').addEventListener('click', doReset);
+document.getElementById('go-scoreboard').addEventListener('click', showScoreboard);
+document.getElementById('sb-back-btn').addEventListener('click', showBoard);
+document.getElementById('t-start').addEventListener('click', timerStart);
+document.getElementById('t-pause').addEventListener('click', timerStop);
+document.getElementById('t-reset').addEventListener('click', timerReset);
+document.getElementById('reveal-mega-btn').addEventListener('click', toggleMega);
+document.getElementById('t-secs-input').addEventListener('change', () => {
+  if (!timerRunning) timerReset();
+});
+
+// ---------------- Keyboard shortcuts ----------------
+document.addEventListener('keydown', (e) => {
+  const onQuestion    = !document.getElementById('question-view').classList.contains('hidden');
+  const onScoreboard  = !document.getElementById('scoreboard-view').classList.contains('hidden');
+  if (onQuestion) {
+    if (e.key === ' ' || e.key === 'Enter') {
+      if (!document.getElementById('reveal-btn').classList.contains('hidden')) {
+        e.preventDefault(); revealAnswer();
+      } else if (!timerRunning && timerLeft > 0) {
+        e.preventDefault(); timerStart();
+      }
+    } else if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+      showBoard();
+    } else if (e.key === 't' || e.key === 'T') {
+      timerRunning ? timerStop() : timerStart();
+    }
+  } else if (!onScoreboard) {
+    if (e.key === 'r' || e.key === 'R') {
+      const confirmOpen = !document.getElementById('reset-confirm').classList.contains('hidden');
+      if (confirmOpen) hideResetConfirm(); else showResetConfirm();
+    } else if (e.key === 'Escape') {
+      hideResetConfirm();
+    } else if (e.key === 's' || e.key === 'S') {
+      showScoreboard();
+    } else if (e.key === 'm' || e.key === 'M') {
+      toggleMega();
+    }
+  } else if (onScoreboard) {
+    if (e.key === 'Escape') showBoard();
+  }
+});
+
+// ================================================================
+//   TIMER LOGIC
+// ================================================================
+function timerUpdateUI() {
+  const wrap  = document.getElementById('t-ring-wrap');
+  const count = document.getElementById('t-count');
+  const ring  = document.getElementById('t-ring-fg');
+  const bar   = document.getElementById('t-progress-fill');
+  const pct   = timerTotal > 0 ? timerLeft / timerTotal : 0;
+  count.textContent = timerLeft;
+  ring.style.strokeDashoffset = TIMER_CIRCUMFERENCE * (1 - pct);
+  bar.style.width = (pct * 100) + '%';
+  wrap.classList.remove('warn', 'danger', 'ended');
+  if      (timerLeft <= 0)                                    wrap.classList.add('ended');
+  else if (timerLeft <= 5)                                    wrap.classList.add('danger');
+  else if (timerLeft <= Math.max(10, Math.round(timerTotal * 0.33))) wrap.classList.add('warn');
+}
+function revealQuestion() {
+  const prompt = document.getElementById('q-prompt');
+  const media  = document.getElementById('q-media');
+  const waiting = document.getElementById('waiting-card');
+  const revealBtn = document.getElementById('reveal-btn');
+  // Hide waiting card
+  waiting.classList.add('hidden');
+  // Show prompt + media with animation
+  prompt.classList.remove('q-hidden');
+  media.classList.remove('q-hidden');
+  prompt.classList.add('q-revealed');
+  media.classList.add('q-revealed');
+  setTimeout(() => { prompt.classList.remove('q-revealed'); media.classList.remove('q-revealed'); }, 500);
+  // Show reveal answer button
+  revealBtn.classList.remove('hidden');
+}
+
+function timerStart() {
+  if (timerRunning || timerLeft <= 0) return;
+  const secs = parseInt(document.getElementById('t-secs-input').value, 10);
+  if (timerLeft === timerTotal && secs >= 5 && secs <= 120) {
+    timerTotal = secs; timerLeft = secs;
+  }
+  // Reveal the question on first start
+  if (document.getElementById('waiting-card') &&
+      !document.getElementById('waiting-card').classList.contains('hidden')) {
+    revealQuestion();
+  }
+  timerRunning = true;
+  document.getElementById('t-start').disabled = true;
+  document.getElementById('t-pause').disabled = false;
+  timerInterval = setInterval(() => {
+    timerLeft = Math.max(0, timerLeft - 1);
+    timerUpdateUI();
+    if (timerLeft <= 0) timerStop();
+  }, 1000);
+}
+function timerStop() {
+  clearInterval(timerInterval); timerInterval = null; timerRunning = false;
+  document.getElementById('t-start').disabled = (timerLeft <= 0);
+  document.getElementById('t-pause').disabled = true;
+}
+function timerReset() {
+  timerStop();
+  const secs = parseInt(document.getElementById('t-secs-input').value, 10);
+  timerTotal = (secs >= 5 && secs <= 120) ? secs : 30;
+  timerLeft  = timerTotal;
+  document.getElementById('t-start').disabled = false;
+  // Re-hide question and show waiting card again
+  const prompt  = document.getElementById('q-prompt');
+  const media   = document.getElementById('q-media');
+  const waiting = document.getElementById('waiting-card');
+  const revealBtn = document.getElementById('reveal-btn');
+  if (prompt && waiting) {
+    prompt.classList.add('q-hidden');
+    media.classList.add('q-hidden');
+    waiting.classList.remove('hidden');
+    revealBtn.classList.add('hidden');
+    document.getElementById('answer-box').classList.add('hidden');
+  }
+  timerUpdateUI();
+}
+
+// ================================================================
+//   AWARD POINTS
+// ================================================================
+function renderAwardPoints() {
+  const title = document.getElementById('award-title');
+  const wrap  = document.getElementById('award-teams');
+  const pts = currentTile
+    ? (currentTile.catId === 'mega' ? 50 : currentTile.points)
+    : 0;
+  wrap.innerHTML = '';
+  if (teams.length === 0) {
+    wrap.innerHTML = '<div class="award-no-teams">No teams yet — add teams on the 🏆 Scoreboard page</div>';
+    title.textContent = 'Award Points';
+    return;
+  }
+  title.textContent = `Award ${pts} pts to:`;
+  teams.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'award-btn';
+    btn.dataset.id = t.id;
+    btn.style.cssText = `color:${t.color};border-color:${t.color};background:${t.color}22;`;
+    btn.innerHTML = `${t.name}<span class="checkmark"></span>`;
+    btn.onclick = () => {
+      if (btn.classList.contains('done')) return;
+      adjustScore(t.id, pts);
+      btn.classList.add('done');
+      btn.querySelector('.checkmark').textContent = ' ✓';
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+// ================================================================
+//   SCOREBOARD RENDER
+// ================================================================
+function renderScoreboard() {
+  const grid = document.getElementById('sb-grid');
+  grid.innerHTML = '';
+  const sorted = [...teams].sort((a, b) => b.score - a.score);
+  sorted.forEach((t, i) => {
+    const card = document.createElement('div');
+    card.className = 'team-card';
+    card.style.cssText = `border-color:${t.color};box-shadow:0 6px 0 rgba(0,0,0,0.3),0 0 30px ${t.color}22;`;
+    card.innerHTML = `
+      <span class="team-rank">${RANK_MEDALS[i] || (i + 1)}</span>
+      <button class="team-delete" data-id="${t.id}" title="Remove team">✕</button>
+      <div class="team-name-row">
+        <input class="team-name" style="color:${t.color}" value="${t.name}"
+               data-id="${t.id}" maxlength="20" title="Click to rename"/>
+      </div>
+      <div class="team-score" style="color:${t.color}">${t.score}</div>
+      <div class="team-score-btns">
+        <button class="sb-pt-btn" data-id="${t.id}" data-d="5">+5</button>
+        <button class="sb-pt-btn" data-id="${t.id}" data-d="10">+10</button>
+        <button class="sb-pt-btn" data-id="${t.id}" data-d="20">+20</button>
+        <button class="sb-pt-btn" data-id="${t.id}" data-d="50">+50</button>
+        <button class="sb-pt-btn minus" data-id="${t.id}" data-d="-10">−10</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  // Add-team card
+  const addCard = document.createElement('div');
+  addCard.className = 'add-team-card'; addCard.id = 'add-team-card';
+  addCard.innerHTML = `<div style="font-size:2rem">➕</div><span>Add Team</span>`;
+  addCard.onclick = showAddTeamForm;
+  grid.appendChild(addCard);
+
+  // Event delegation
+  grid.querySelectorAll('.team-delete').forEach(b =>
+    b.addEventListener('click', e => { e.stopPropagation(); removeTeam(Number(b.dataset.id)); }));
+  grid.querySelectorAll('.sb-pt-btn').forEach(b =>
+    b.addEventListener('click', () => adjustScore(Number(b.dataset.id), Number(b.dataset.d))));
+  grid.querySelectorAll('.team-name').forEach(inp => {
+    inp.addEventListener('change', () => renameTeam(Number(inp.dataset.id), inp.value));
+    inp.addEventListener('blur',   () => renameTeam(Number(inp.dataset.id), inp.value));
+  });
+}
+
+function showAddTeamForm() {
+  const card = document.getElementById('add-team-card');
+  card.onclick = null;
+  card.innerHTML = `
+    <div class="add-team-form">
+      <input id="new-team-input" placeholder="Team name…" maxlength="20"/>
+      <button class="add-team-confirm" id="add-team-confirm">Add Team</button>
+    </div>`;
+  const inp = card.querySelector('#new-team-input');
+  inp.focus();
+  card.querySelector('#add-team-confirm').onclick = () => addTeam(inp.value);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  addTeam(inp.value);
+    if (e.key === 'Escape') renderScoreboard();
+  });
+}
+
+// ---------------- Landing page → Game ----------------
+function revealExample(btn) {
+  btn.classList.add('hidden');
+  btn.nextElementSibling.classList.remove('hidden');
+}
+
+function startGame() {
+  document.getElementById('landing-view').classList.add('hidden');
+  document.getElementById('home-view').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+// ---------------- Init ----------------
+buildBoard();
+timerUpdateUI();
+document.getElementById('proceed-btn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
